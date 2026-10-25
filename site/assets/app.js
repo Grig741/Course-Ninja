@@ -26,7 +26,9 @@
   };
 
   async function run(q, lang, box, { withLinks = true, src = "", skipCatalog = false } = {}) {
-    box.replaceChildren(el("div", "status", "Ищу бесплатные курсы…"));
+    const sk = el("div", "skeleton");
+    for (let i = 0; i < 6; i++) sk.append(el("div", "sk"));
+    box.replaceChildren(el("div", "status", "Ищу бесплатные курсы…"), sk);
     let data;
     try {
       const r = await fetch(`/api/search?q=${encodeURIComponent(q)}&lang=${lang}${src ? "&src=" + src : ""}`);
@@ -66,6 +68,7 @@
       out.push(l);
     }
     box.replaceChildren(...out);
+    box.querySelectorAll(".card").forEach((c, i) => c.style.setProperty("--i", i));
   }
 
   // форма поиска на главной
@@ -95,5 +98,80 @@
   // живые результаты на страницах тем
   document.querySelectorAll("[data-live-q]").forEach((box) => {
     run(box.dataset.liveQ, store.get() || "ru", box, { withLinks: true, src: "page", skipCatalog: true });
+  });
+
+  // ---------- анимации ----------
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // появление блоков при скролле
+  const reveal = document.querySelectorAll("[data-reveal]");
+  if ("IntersectionObserver" in window && !reduce) {
+    const io = new IntersectionObserver((entries) => {
+      entries.forEach((e) => {
+        if (!e.isIntersecting) return;
+        e.target.classList.add("in");
+        io.unobserve(e.target);
+        const n = e.target.querySelector("[data-count]");
+        if (n) countUp(n);
+      });
+    }, { threshold: 0.12, rootMargin: "0px 0px -40px 0px" });
+    reveal.forEach((n) => io.observe(n));
+  } else {
+    reveal.forEach((n) => n.classList.add("in"));
+  }
+
+  function countUp(n) {
+    const to = Number(n.dataset.count) || 0;
+    const t0 = performance.now(), dur = 1100;
+    const step = (t) => {
+      const k = Math.min(1, (t - t0) / dur);
+      n.textContent = Math.round(to * (1 - Math.pow(1 - k, 3)));
+      if (k < 1) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }
+
+  // печатающийся placeholder в поиске
+  const input = document.querySelector("#search input");
+  if (input && !reduce) {
+    const words = ["python с нуля", "маркетинг", "excel", "английский язык", "нейросети", "figma", "финансовая грамотность", "sql"];
+    let w = 0, c = 0, del = false;
+    const tick = () => {
+      if (document.activeElement !== input && !input.value) {
+        const word = words[w];
+        c += del ? -1 : 1;
+        input.placeholder = "Например: " + word.slice(0, c) + (c % 2 ? "|" : "");
+        if (!del && c === word.length) { del = true; return setTimeout(tick, 1400); }
+        if (del && c === 0) { del = false; w = (w + 1) % words.length; }
+      }
+      setTimeout(tick, del ? 45 : 90);
+    };
+    setTimeout(tick, 800);
+  }
+
+  // параллакс карточек в hero за курсором
+  const art = document.querySelector(".hero-art");
+  if (art && !reduce && matchMedia("(pointer: fine)").matches) {
+    const items = art.querySelectorAll("[data-depth]");
+    let raf = 0;
+    addEventListener("mousemove", (e) => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        const x = e.clientX / innerWidth - 0.5, y = e.clientY / innerHeight - 0.5;
+        items.forEach((it) => {
+          const d = Number(it.dataset.depth);
+          it.style.transform = `translate(${-x * d}px, ${-y * d}px) rotateY(${x * 6}deg) rotateX(${-y * 6}deg)`;
+        });
+      });
+    }, { passive: true });
+  }
+
+  // подсветка под курсором на карточках тем
+  document.querySelectorAll(".topic").forEach((t) => {
+    t.addEventListener("pointermove", (e) => {
+      const r = t.getBoundingClientRect();
+      t.style.setProperty("--mx", `${e.clientX - r.left}px`);
+      t.style.setProperty("--my", `${e.clientY - r.top}px`);
+    });
   });
 })();

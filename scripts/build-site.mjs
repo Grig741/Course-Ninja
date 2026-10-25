@@ -2,6 +2,7 @@
 // Netlify сам подставляет URL сайта (env URL). BOT_USERNAME — юзернейм бота без @.
 import { cpSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { CATALOG, SLUGS } from "../lib/catalog.mjs";
+import { TOPIC_ART, HERO_ART, PLATFORMS, LOST_ART } from "./art.mjs";
 
 const SITE = (process.env.SITE_URL || process.env.URL || "https://example.netlify.app").replace(/\/$/, "");
 // принимает "MyBot", "@MyBot" и "https://t.me/MyBot"
@@ -50,6 +51,7 @@ function layout({ title, description, path, body, jsonld }) {
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<script>document.documentElement.classList.add("js")</script>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <meta name="description" content="${esc(description)}">
@@ -75,6 +77,7 @@ ${jsonld ? `<script type="application/ld+json">${JSON.stringify(jsonld).replace(
     <a class="btn btn-primary" href="${bot()}" rel="noopener">Открыть бота</a>
   </nav>
 </div></header>
+<div class="bg-blobs" aria-hidden="true"><span class="blob b1"></span><span class="blob b2"></span><span class="blob b3"></span></div>
 <main>
 ${body}
 </main>
@@ -90,11 +93,12 @@ ${body}
 const topicCards = (exclude) =>
   Object.entries(META)
     .filter(([slug]) => slug !== exclude)
-    .map(([slug, m]) => `<a class="topic" href="/kursy/${slug}/"><div class="e">${m.e}</div><h3>${esc(m.name)}</h3><p>${esc(m.short)}</p></a>`)
+    .map(([slug, m], i) => `<a class="topic" href="/kursy/${slug}/" data-reveal style="--i:${i}"><div class="topic-art">${TOPIC_ART[slug]}</div><h3>${esc(m.name)}</h3><p>${esc(m.short)}</p><span class="arrow">→</span></a>`)
     .join("\n");
 
 const ctaBlock = (start, title, text) => `
-<section><div class="wrap"><div class="cta">
+<section><div class="wrap"><div class="cta" data-reveal>
+  <span class="cta-glow" aria-hidden="true"></span>
   <div><h2>${esc(title)}</h2><p>${esc(text)}</p></div>
   <a class="btn btn-primary" href="${bot(start)}" rel="noopener">Открыть в Telegram</a>
 </div></div></section>`;
@@ -104,9 +108,10 @@ function homePage() {
   const chips = ["python", "бизнес", "маркетинг", "excel", "английский", "нейросети", "figma", "sql"]
     .map((q) => `<button type="button" class="chip" data-q="${esc(q)}">${esc(q)}</button>`).join("");
   const body = `
-<div class="wrap hero">
-  <span class="eyebrow">Stepik · Coursera · YouTube · edX · MIT · Khan Academy</span>
-  <h1>Все бесплатные курсы — в одном поиске</h1>
+<div class="wrap hero hero-home">
+ <div class="hero-text">
+  <span class="eyebrow"><span class="pulse-dot"></span>Stepik · Coursera · YouTube · edX · MIT</span>
+  <h1>Все бесплатные курсы — <span class="grad">в одном поиске</span></h1>
   <p class="lead">Напиши, чему хочешь научиться. Найдём бесплатные курсы на крупных платформах и покажем только то, за что не надо платить.</p>
   <form class="search" id="search" role="search">
     <input type="search" name="q" placeholder="Например: python, маркетинг, excel" aria-label="Что хочешь изучить" autocomplete="off" maxlength="100">
@@ -118,20 +123,33 @@ function homePage() {
     <button class="btn btn-primary" type="submit">Найти</button>
   </form>
   <div class="chips">${chips}</div>
-  <div class="results" id="results" aria-live="polite"></div>
+ </div>
+ ${HERO_ART}
+ <div class="results" id="results" aria-live="polite"></div>
 </div>
 
+<div class="marquee" aria-label="Платформы в поиске">
+  <div class="marquee-track">${[...PLATFORMS, ...PLATFORMS].map((p) => `<span>${esc(p)}</span>`).join("<i>✦</i>")}<i>✦</i></div>
+</div>
+
+<section class="stats-row"><div class="wrap"><div class="stats">
+  <div class="stat" data-reveal><b data-count="${PLATFORMS.length}">${PLATFORMS.length}</b><span>платформ в поиске</span></div>
+  <div class="stat" data-reveal style="--i:1"><b data-count="${Object.keys(META).length}">${Object.keys(META).length}</b><span>готовых подборок</span></div>
+  <div class="stat" data-reveal style="--i:2"><b>0 ₽</b><span>за любой курс</span></div>
+  <div class="stat" data-reveal style="--i:3"><b>24/7</b><span>бот в Telegram</span></div>
+</div></div></section>
+
 <section id="topics"><div class="wrap">
-  <h2>Подборки по темам</h2>
+  <h2 data-reveal>Подборки по темам</h2>
   <div class="grid">${topicCards()}</div>
 </div></section>
 
 <section><div class="wrap">
-  <h2>Как это работает</h2>
+  <h2 data-reveal>Как это работает</h2>
   <div class="steps">
-    <div class="step"><h3>Пишешь тему</h3><p>Любую: от «python с нуля» до «финансовая грамотность».</p></div>
-    <div class="step"><h3>Ищем по платформам</h3><p>Stepik, Coursera, YouTube и другие. Платные курсы отсекаем.</p></div>
-    <div class="step"><h3>Получаешь новинки</h3><p>Подпишись на тему в Telegram-боте — пришлём новые курсы, как только они появятся.</p></div>
+    <div class="step" data-reveal style="--i:0"><h3>Пишешь тему</h3><p>Любую: от «python с нуля» до «финансовая грамотность».</p></div>
+    <div class="step" data-reveal style="--i:1"><h3>Ищем по платформам</h3><p>Stepik, Coursera, YouTube и другие. Платные курсы отсекаем.</p></div>
+    <div class="step" data-reveal style="--i:2"><h3>Получаешь новинки</h3><p>Подпишись на тему в Telegram-боте — пришлём новые курсы, как только они появятся.</p></div>
   </div>
 </div></section>
 ${ctaBlock("", "Курсы прямо в Telegram", "Тот же поиск в боте: избранное, подписки на темы и ежедневные новинки.")}`;
@@ -152,15 +170,18 @@ function topicPage(slug) {
   const m = META[slug];
   const items = CATALOG[SLUGS[slug]] || [];
   const cards = items.map(([t, u, d]) =>
-    `<a class="card" href="${esc(u)}" target="_blank" rel="noopener"><div class="t">${esc(t)}</div><div class="s"><span class="badge ok">Проверено</span>${esc(d)}</div></a>`).join("\n");
+    `<a class="card" href="${esc(u)}" target="_blank" rel="noopener" data-reveal><div class="t">${esc(t)}</div><div class="s"><span class="badge ok">Проверено</span>${esc(d)}</div></a>`).join("\n");
   const body = `
 <div class="wrap">
   <div class="crumbs"><a href="/">Главная</a> / ${esc(m.name)}</div>
-  <div class="hero" style="padding:20px 0 28px">
+  <div class="hero hero-topic" style="padding:20px 0 28px">
+   <div>
     <span class="eyebrow">${m.e} ${esc(m.name)}</span>
     <h1>${esc(m.title)}</h1>
     <p class="lead">${esc(m.intro)}</p>
-    <a class="btn btn-primary" href="${bot("t_" + slug)}" rel="noopener">Получать новые курсы в Telegram</a>
+    <a class="btn btn-primary btn-shine" href="${bot("t_" + slug)}" rel="noopener">Получать новые курсы в Telegram</a>
+   </div>
+   <div class="topic-hero-art">${TOPIC_ART[slug]}</div>
   </div>
   <div class="group-title">Проверенные ресурсы</div>
   <div class="list">${cards}</div>
@@ -168,7 +189,7 @@ function topicPage(slug) {
 </div>
 ${ctaBlock("t_" + slug, `Новые курсы по теме «${m.name}»`, "Подпишись в боте — каждый день присылаем только новые бесплатные курсы по этой теме.")}
 <section><div class="wrap">
-  <h2>Другие темы</h2>
+  <h2 data-reveal>Другие темы</h2>
   <div class="grid">${topicCards(slug)}</div>
 </div></section>`;
   return layout({
@@ -194,17 +215,17 @@ function proPage() {
   <h1>Больше подписок и избранного</h1>
   <p class="lead">Поиск остаётся бесплатным для всех. Pro — для тех, кто следит за несколькими темами и хочет поддержать проект.</p>
   <div class="plans">
-    <div class="plan">
+    <div class="plan" data-reveal>
       <h3>Бесплатно</h3>
       <div class="price">0 <small>навсегда</small></div>
       <ul><li>Поиск по всем платформам</li><li>Подборки по темам</li><li>1 подписка на новинки</li><li>До 10 курсов в избранном</li></ul>
       <a class="btn btn-ghost" href="${bot()}" rel="noopener">Открыть бота</a>
     </div>
-    <div class="plan pro">
+    <div class="plan pro" data-reveal style="--i:1"><span class="ribbon">Популярно</span>
       <h3>Pro</h3>
       <div class="price">$${esc(PRICE_USD)} <small>/ ${esc(PRO_DAYS)} дней</small></div>
       <ul><li>Всё из бесплатного</li><li>До 10 подписок на темы</li><li>До 200 курсов в избранном</li><li>Поддержка развития проекта</li></ul>
-      <a class="btn btn-primary" href="${bot("pro")}" rel="noopener">Оформить в Telegram</a>
+      <a class="btn btn-primary btn-shine" href="${bot("pro")}" rel="noopener">Оформить в Telegram</a>
     </div>
   </div>
   <p class="note">Оплата проходит в боте: криптой через @CryptoBot (USDT, TON, BTC) — Pro включается сразу, или переводом по реквизитам (${esc(PRICE_BANK)}) — включаем после проверки чека. Автопродления нет.</p>
@@ -222,7 +243,7 @@ function notFound() {
     title: "Страница не найдена — FreeCourses",
     description: "Страница не найдена.",
     path: "/404.html",
-    body: `<div class="wrap hero"><h1>Такой страницы нет</h1><p class="lead">Зато есть поиск по бесплатным курсам.</p><a class="btn btn-primary" href="/">На главную</a></div>`,
+    body: `<div class="wrap hero"><div class="lost-wrap">${LOST_ART}</div><h1>Такой страницы нет</h1><p class="lead">Зато есть поиск по бесплатным курсам.</p><a class="btn btn-primary" href="/">На главную</a></div>`,
   });
 }
 
