@@ -13,7 +13,7 @@ export default async (req) => {
   const topic = findTopic(q);
   const [results] = await Promise.all([
     searchAll(q, lang, 8),
-    u.searchParams.get("src") === "page" ? null : db.logQuery(null, q), // авто-загрузку на страницах тем не считаем
+    u.searchParams.get("src") === "page" ? null : db.logQuery(null, q).catch(() => {}), // авто-загрузку на страницах тем не считаем
   ]);
 
   return Response.json(
